@@ -1,0 +1,7 @@
+.venv/
+.vscode/
+build/
+example.ipynb
+*.ipynb
+*.so
+*.egg-info/
