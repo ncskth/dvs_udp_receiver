@@ -9,6 +9,9 @@
 
 #include "client.hpp"
 
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+
 class TensorBuffer {
 private:
   const torch::IntArrayRef size;
@@ -46,10 +49,8 @@ public:
     buffer1.swap(buffer2);
     buffer_lock.unlock();
     // Copy and clean
-    auto copy = buffer2->to(options_copy, false, true);
-    auto new_buffer =
-        std::make_shared<torch::Tensor>(torch::zeros(size, options_buffer));
-    buffer2.swap(new_buffer);
+    auto copy = buffer2->to(options_copy, true, true);
+    buffer2->index_put_({torch::indexing::Slice()}, false);
     // bool *array = buffer2.get();
     // std::fill(array, array + length, false);
     return copy;
@@ -106,8 +107,6 @@ public:
   void stop_server() { is_serving.store(false); }
 };
 
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
 PYBIND11_MODULE(udpstream, m) {
   py::class_<UDPStream>(m, "UDPStream")
       .def(py::init<int, torch::IntArrayRef, std::string>())
@@ -117,13 +116,15 @@ PYBIND11_MODULE(udpstream, m) {
 
 // using namespace std::chrono_literals;
 
-// int main(int argc, char *argv[]) {
+// int main(int argc, char *argv[])
+// {
 
 //   std::string port_cli;
 
 //   auto stream = UDPStream(2300, {640, 480}, "cuda:1");
 
-//   for (int i = 0; i < 1000; i++) {
+//   for (int i = 0; i < 1000; i++)
+//   {
 //     std::this_thread::sleep_for(1s);
 //     auto r = stream.read();
 //     printf("%ldx%ld:%ld\n", r.size(0), r.size(1), r.sum().item<int64_t>());

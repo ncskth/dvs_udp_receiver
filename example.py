@@ -15,7 +15,7 @@ for i in range(100):
     frames.append(frame)
     t_0 = time.time()
 
-print(frames[-1].shape)
+print(torch.stack(frames).sum(1).sum(1).mean())
 
 try:
     stream.stop_server()
