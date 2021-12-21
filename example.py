@@ -1,3 +1,4 @@
+import datetime
 import time
 
 import torch
@@ -5,17 +6,15 @@ from udpstream import UDPStream
 
 stream = UDPStream(2300, torch.Size((640, 480)), "cuda:1")
 
-interval = 0.003
-frames = []
+interval = 0.5
 t_0 = time.time()
-for i in range(100):
-    while t_0 + interval <= time.time():
-        pass
-    frame = stream.read()
-    frames.append(frame)
-    t_0 = time.time()
-
-print(torch.stack(frames).sum(1).sum(1).mean())
+while True:
+    if t_0 + interval <= time.time():
+        frame = stream.read()
+        t_0 = time.time()
+        print(
+            f"Frame at {datetime.datetime.fromtimestamp(t_0).time()} with {frame.sum()} events"
+        )
 
 try:
     stream.stop_server()

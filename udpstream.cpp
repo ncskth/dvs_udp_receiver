@@ -14,7 +14,7 @@ namespace py = pybind11;
 
 class TensorBuffer {
 private:
-  const torch::IntArrayRef size;
+  const std::vector<int64_t> shape;
   torch::TensorOptions options_buffer;
   torch::TensorOptions options_copy;
 
@@ -23,9 +23,12 @@ private:
   std::shared_ptr<torch::Tensor> buffer2;
 
 public:
-  TensorBuffer(torch::IntArrayRef size, std::string device) : size(size) {
-    options_buffer =
-        torch::TensorOptions().dtype(torch::kBool).device(torch::kCPU);
+  TensorBuffer(torch::IntArrayRef size, std::string device)
+      : shape(size.vec()) {
+    options_buffer = torch::TensorOptions()
+                         .dtype(torch::kBool)
+                         .device(torch::kCPU)
+                         .memory_format(c10::MemoryFormat::Contiguous);
     options_copy = torch::TensorOptions().dtype(torch::kFloat32).device(device);
     buffer1 =
         std::make_shared<torch::Tensor>(torch::zeros(size, options_buffer));
@@ -33,15 +36,16 @@ public:
         std::make_shared<torch::Tensor>(torch::zeros(size, options_buffer));
   }
   void set_buffer(uint16_t data[], int numbytes) {
-    if (buffer_lock.try_lock()) {
-      for (int i = 0; i < numbytes / 2; i = i + 2) {
-        // Decode x, y
-        uint16_t x_coord = data[i] & 0x7FFF;
-        uint16_t y_coord = data[i + 1] & 0x7FFF;
-        buffer1->index_put_({y_coord, x_coord}, true);
-      }
-      buffer_lock.unlock();
+    const auto length = numbytes >> 1;
+    buffer_lock.lock();
+    for (int i = 0; i < length; i = i + 2) {
+      // Decode x, y
+      const uint16_t y_coord = data[i] & 0x7FFF;
+      const uint16_t x_coord = data[i + 1] & 0x7FFF;
+      bool *array = (bool *)buffer1->data_ptr();
+      *(array + shape[1] * x_coord + y_coord) = true;
     }
+    buffer_lock.unlock();
   }
   at::Tensor read() {
     // Swap out old pointer
@@ -51,8 +55,6 @@ public:
     // Copy and clean
     auto copy = buffer2->to(options_copy, true, true);
     buffer2->index_put_({torch::indexing::Slice()}, false);
-    // bool *array = buffer2.get();
-    // std::fill(array, array + length, false);
     return copy;
   }
 };
@@ -72,6 +74,7 @@ private:
   }
 
 public:
+  uint64_t count = 0;
   UDPStream(int port, torch::IntArrayRef size, std::string device)
       : buffer(size, device), port(port) {
     start_server();
@@ -98,13 +101,17 @@ public:
         perror("recvfrom");
         return;
       }
+      count += numbytes / 4;
 
       buffer.set_buffer(int_buf, numbytes);
     }
     close(sockfd);
   }
 
-  void stop_server() { is_serving.store(false); }
+  void stop_server() {
+    is_serving.store(false);
+    printf("Total events: %lu\n", count);
+  }
 };
 
 PYBIND11_MODULE(udpstream, m) {
