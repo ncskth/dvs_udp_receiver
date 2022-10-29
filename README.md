@@ -1,4 +1,4 @@
-## **NOTE**: This project is superceeded by [AEStream](https://github.com/norse/aestream/)
+## **NOTE**: This project is superseded by [AEStream](https://github.com/norse/aestream/)
 
 # <s>UDP DVS stream</s>
 
