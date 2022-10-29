@@ -1,4 +1,6 @@
-# UDP DVS stream
+## **NOTE**: This project is superceeded by [AEStream](https://github.com/norse/aestream/)
+
+# <s>UDP DVS stream</s>
 
 This project allows the streaming of dynamic vision system (DVS) 
 event-camera data over UDP and into PyTorch.
